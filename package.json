@@ -1,0 +1,13 @@
+{
+  "name": "multi-source-job-aggregator-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Backend architecture for a modular multi-source job aggregator.",
+  "main": "api/jobs.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
