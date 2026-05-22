@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { normalizeFilters, applyJobFilters } = require("../src/filters/jobFilters");
+const { aggregateJobs, detectJobLanguage } = require("../src/search");
 const { generateSearchQuery } = require("../src/search/generateSearchQuery");
 const { buildIndeedSearchUrls, fetchIndeedJobs } = require("../src/search/sources/indeed");
 const { fetchLinkedInJobs, parseApplicantCount } = require("../src/search/sources/linkedin");
@@ -137,6 +138,68 @@ test("Indeed returns temporary mock jobs without a proxy URL", async () => {
     assert.ok(jobs.every((job) => job.source === "Indeed"));
     assert.ok(jobs.every((job) => job.is_mock));
   } finally {
+    process.env.INDEED_JOBS_API_URL = originalProxy;
+  }
+});
+
+test("detectJobLanguage identifies common Turkish, German, and English content", () => {
+  assert.equal(detectJobLanguage("Backend Gelistirici", "Uzaktan calisma ve esnek saatler için ekip ariyoruz"), "tr");
+  assert.equal(detectJobLanguage("Software Entwickler", "Vollzeit mit Deutsch und Englisch"), "de");
+  assert.equal(detectJobLanguage("Remote Backend Engineer", "Build APIs for global teams"), "en");
+});
+
+test("language filter accepts a multi-select array with OR matching", () => {
+  const filters = normalizeFilters({
+    role: "Engineer",
+    languages: ["en", "tr"]
+  });
+  const result = applyJobFilters(
+    [
+      { title: "English role", language: "en", job_type: [], remote_type: [] },
+      { title: "Turkish role", language: "tr", job_type: [], remote_type: [] },
+      { title: "German role", language: "de", job_type: [], remote_type: [] }
+    ],
+    filters
+  );
+
+  assert.deepEqual(
+    result.map((job) => job.title),
+    ["English role", "Turkish role"]
+  );
+});
+
+test("aggregator detects missing job language before filtering", async () => {
+  const filters = normalizeFilters({
+    role: "Backend",
+    languages: ["tr"],
+    sources: ["indeed"]
+  });
+  const originalProxy = process.env.INDEED_JOBS_API_URL;
+  const originalFetch = global.fetch;
+  process.env.INDEED_JOBS_API_URL = "https://example.test/indeed";
+  global.fetch = async () => ({
+    ok: true,
+    async json() {
+      return {
+        jobs: [
+          {
+            title: "Backend Gelistirici",
+            company: "Acme",
+            location: "Istanbul",
+            description: "Uzaktan calisma ve ekip ile urun gelistirme",
+            apply_link: "https://example.test/apply"
+          }
+        ]
+      };
+    }
+  });
+
+  try {
+    const result = await aggregateJobs(filters);
+    assert.equal(result.total, 1);
+    assert.equal(result.jobs[0].language, "tr");
+  } finally {
+    global.fetch = originalFetch;
     process.env.INDEED_JOBS_API_URL = originalProxy;
   }
 });

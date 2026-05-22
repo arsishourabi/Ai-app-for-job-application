@@ -21,6 +21,7 @@ async function fetchGoogleJobs(searchQuery) {
   return jobs.map((job) =>
     createJobPost({
       title: job.title,
+      description: job.description,
       company: job.company_name,
       location: job.location,
       source: JOB_SOURCES.GOOGLE,
@@ -31,7 +32,7 @@ async function fetchGoogleJobs(searchQuery) {
       is_contractor: String(job.title || "").toLowerCase().includes("contract"),
       is_visa_sponsored: false,
       work_from_anywhere: /worldwide|anywhere/i.test(`${job.location || ""} ${job.description || ""}`),
-      language: "en",
+      language: job.language,
       apply_link: job.related_links && job.related_links[0] ? job.related_links[0].link : job.share_link
     })
   );

@@ -34,6 +34,7 @@ function mapLinkedInJob(job) {
 
   return createJobPost({
     title: job.title,
+    description,
     company: job.company_name || job.company,
     location: job.location,
     source: JOB_SOURCES.LINKEDIN,
@@ -44,7 +45,7 @@ function mapLinkedInJob(job) {
     is_contractor: /contract|contractor/i.test(`${job.title || ""} ${description}`),
     is_visa_sponsored: /visa|sponsor/i.test(description),
     work_from_anywhere: /worldwide|work from anywhere|anywhere/i.test(`${job.location || ""} ${description}`),
-    language: job.language || "en",
+    language: job.language,
     apply_link: readApplyLink(job)
   });
 }

@@ -22,7 +22,7 @@ function normalizeAlertFilters(input = {}) {
     isContractor: normalizeBoolean(input.is_contractor ?? input.isContractor),
     visa_sponsorship: normalizeBoolean(input.visa_sponsorship ?? input.is_visa_sponsored ?? input.isVisaSponsored),
     under_10_applicants: normalizeBoolean(input.under_10_applicants ?? input.under10Applicants),
-    language: input.language,
+    languages: input.languages ?? input.language,
     sources: input.sources
   });
 }

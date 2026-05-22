@@ -83,6 +83,7 @@ async function fetchIndeedJobs(searchQuery) {
       ...items.map((job) =>
         createJobPost({
           title: job.title,
+          description: job.description,
           company: job.company,
           location: job.location,
           source: JOB_SOURCES.INDEED,

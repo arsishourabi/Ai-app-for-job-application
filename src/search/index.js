@@ -1,6 +1,7 @@
 const { applyJobFilters } = require("../filters/jobFilters");
 const { JOB_POST_SCHEMA } = require("../schema/jobPost");
 const { generateSearchQuery } = require("./generateSearchQuery");
+const { detectJobLanguage, ensureJobLanguage } = require("./languageDetection");
 const { sourceAdapters } = require("./sources");
 
 function selectSources(filters) {
@@ -41,7 +42,8 @@ async function aggregateJobs(filters) {
     .filter((result) => result.status === "fulfilled")
     .flatMap((result) => result.value.jobs);
 
-  const filteredJobs = applyJobFilters(dedupeJobs(jobs), filters);
+  const normalizedJobs = dedupeJobs(jobs).map(ensureJobLanguage);
+  const filteredJobs = applyJobFilters(normalizedJobs, filters);
 
   return {
     schema: JOB_POST_SCHEMA,
@@ -55,5 +57,6 @@ async function aggregateJobs(filters) {
 
 module.exports = {
   aggregateJobs,
+  detectJobLanguage,
   generateSearchQuery
 };

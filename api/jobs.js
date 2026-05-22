@@ -51,7 +51,7 @@ async function jobsHandler(req, res) {
     workFromAnywhere: parseBoolean(query.work_from_anywhere || query.workFromAnywhere),
     isContractor: parseBoolean(query.is_contractor || query.isContractor),
     isVisaSponsored: parseBoolean(query.is_visa_sponsored || query.isVisaSponsored),
-    language: query.language,
+    languages: parseList(query.languages || query.language),
     sources: parseList(query.sources)
   });
 

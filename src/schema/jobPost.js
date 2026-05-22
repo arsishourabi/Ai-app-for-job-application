@@ -8,6 +8,7 @@ const JOB_SOURCES = Object.freeze({
 
 const JOB_POST_SCHEMA = Object.freeze({
   title: "string",
+  description: "string",
   company: "string",
   location: "string",
   source: "LinkedIn | Google | Indeed | JobToday | DynamiteJobs | string",
@@ -26,6 +27,7 @@ const JOB_POST_SCHEMA = Object.freeze({
 function createJobPost(input) {
   return {
     title: input.title || "",
+    description: input.description || "",
     company: input.company || "",
     location: input.location || "",
     source: input.source || "",
@@ -36,7 +38,7 @@ function createJobPost(input) {
     is_contractor: Boolean(input.is_contractor),
     is_visa_sponsored: Boolean(input.is_visa_sponsored),
     work_from_anywhere: Boolean(input.work_from_anywhere),
-    language: input.language || "en",
+    language: input.language ? String(input.language).toLowerCase() : "",
     apply_link: input.apply_link || "",
     is_mock: Boolean(input.is_mock)
   };

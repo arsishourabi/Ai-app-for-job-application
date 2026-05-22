@@ -17,6 +17,7 @@ function normalizeMatchMode(value) {
 function normalizeFilters(input) {
   const under10Applicants = input.under10Applicants === undefined ? input.under_10_applicants : input.under10Applicants;
   const visaSponsorship = input.visaSponsorship === undefined ? input.visa_sponsorship : input.visaSponsorship;
+  const languages = input.languages === undefined ? input.language : input.languages;
 
   return {
     role: String(input.role || "").trim(),
@@ -29,7 +30,7 @@ function normalizeFilters(input) {
     isContractor: input.isContractor === undefined ? undefined : Boolean(input.isContractor),
     isVisaSponsored: input.isVisaSponsored === undefined && visaSponsorship === undefined ? undefined : Boolean(input.isVisaSponsored ?? visaSponsorship),
     under10Applicants: under10Applicants === undefined ? undefined : Boolean(under10Applicants),
-    language: input.language ? String(input.language).toLowerCase() : undefined,
+    languages: normalizeList(languages),
     sources: normalizeList(input.sources)
   };
 }
@@ -53,7 +54,7 @@ function applyJobFilters(jobs, filters) {
     if (filters.isContractor !== undefined && job.is_contractor !== filters.isContractor) return false;
     if (filters.isVisaSponsored !== undefined && job.is_visa_sponsored !== filters.isVisaSponsored) return false;
     if (filters.under10Applicants && (job.applicant_count === null || job.applicant_count > 9)) return false;
-    if (filters.language && String(job.language || "").toLowerCase() !== filters.language) return false;
+    if (filters.languages.length && !filters.languages.includes(String(job.language || "").toLowerCase())) return false;
     return true;
   });
 }

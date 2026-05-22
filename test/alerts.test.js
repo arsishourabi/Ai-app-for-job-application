@@ -24,7 +24,7 @@ test("alert subscription validates email and normalizes snake_case filters", () 
   assert.deepEqual(result.filters.remoteType, ["remote"]);
   assert.equal(result.filters.isVisaSponsored, true);
   assert.equal(result.filters.under10Applicants, true);
-  assert.equal(result.filters.language, "en");
+  assert.deepEqual(result.filters.languages, ["en"]);
 });
 
 test("alert subscription rejects invalid requests", () => {
