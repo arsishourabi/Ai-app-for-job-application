@@ -78,14 +78,14 @@ test("under 10 applicant filter excludes unknown and crowded jobs", () => {
   assert.equal(result[0].title, "Low applicant role");
 });
 
-test("LinkedIn adapter uses SerpApi linkedin_jobs and maps applicants", async () => {
+test("LinkedIn adapter uses SerpApi google_jobs with a LinkedIn site query", async () => {
   const originalFetch = global.fetch;
   const originalApiKey = process.env.SERPAPI_API_KEY;
   process.env.SERPAPI_API_KEY = "test-key";
 
   global.fetch = async (url) => {
-    assert.equal(url.searchParams.get("engine"), "linkedin_jobs");
-    assert.equal(url.searchParams.get("q"), "Backend Engineer");
+    assert.equal(url.searchParams.get("engine"), "google_jobs");
+    assert.equal(url.searchParams.get("q"), `"Backend Engineer" site:linkedin.com`);
     assert.equal(url.searchParams.get("location"), "Istanbul");
     assert.equal(url.searchParams.get("api_key"), "test-key");
 

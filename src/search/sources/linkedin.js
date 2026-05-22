@@ -56,8 +56,8 @@ async function fetchLinkedInJobs(searchQuery) {
   }
 
   const url = new URL("https://serpapi.com/search.json");
-  url.searchParams.set("engine", "linkedin_jobs");
-  url.searchParams.set("q", searchQuery.linkedIn.keywords);
+  url.searchParams.set("engine", "google_jobs");
+  url.searchParams.set("q", `"${searchQuery.linkedIn.keywords}" site:linkedin.com`);
   url.searchParams.set("location", searchQuery.linkedIn.location);
   url.searchParams.set("api_key", process.env.SERPAPI_API_KEY);
 
