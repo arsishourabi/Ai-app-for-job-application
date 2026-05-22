@@ -15,16 +15,20 @@ function normalizeMatchMode(value) {
 }
 
 function normalizeFilters(input) {
+  const under10Applicants = input.under10Applicants === undefined ? input.under_10_applicants : input.under10Applicants;
+  const visaSponsorship = input.visaSponsorship === undefined ? input.visa_sponsorship : input.visaSponsorship;
+
   return {
     role: String(input.role || "").trim(),
     location: String(input.location || "Worldwide").trim() || "Worldwide",
-    jobType: normalizeList(input.jobType),
+    jobType: normalizeList(input.jobType || input.job_type),
     jobTypeMode: normalizeMatchMode(input.jobTypeMode),
-    remoteType: normalizeList(input.remoteType),
+    remoteType: normalizeList(input.remoteType || input.remote_type),
     remoteTypeMode: normalizeMatchMode(input.remoteTypeMode),
     workFromAnywhere: input.workFromAnywhere === undefined ? undefined : Boolean(input.workFromAnywhere),
     isContractor: input.isContractor === undefined ? undefined : Boolean(input.isContractor),
-    isVisaSponsored: input.isVisaSponsored === undefined ? undefined : Boolean(input.isVisaSponsored),
+    isVisaSponsored: input.isVisaSponsored === undefined && visaSponsorship === undefined ? undefined : Boolean(input.isVisaSponsored ?? visaSponsorship),
+    under10Applicants: under10Applicants === undefined ? undefined : Boolean(under10Applicants),
     language: input.language ? String(input.language).toLowerCase() : undefined,
     sources: normalizeList(input.sources)
   };
@@ -48,6 +52,7 @@ function applyJobFilters(jobs, filters) {
     if (filters.workFromAnywhere !== undefined && job.work_from_anywhere !== filters.workFromAnywhere) return false;
     if (filters.isContractor !== undefined && job.is_contractor !== filters.isContractor) return false;
     if (filters.isVisaSponsored !== undefined && job.is_visa_sponsored !== filters.isVisaSponsored) return false;
+    if (filters.under10Applicants && (job.applicant_count === null || job.applicant_count > 9)) return false;
     if (filters.language && String(job.language || "").toLowerCase() !== filters.language) return false;
     return true;
   });

@@ -29,6 +29,38 @@ Example:
 /api/jobs?role=Backend%20Engineer&location=Worldwide&remote_type=remote,async&remote_type_mode=or&work_from_anywhere=true
 ```
 
+`POST /api/alerts/subscribe`
+
+Creates a saved job alert in `data/job_alerts.json` using this shape:
+
+```json
+{
+  "email": "user@example.com",
+  "filters": {
+    "role": "Backend Engineer",
+    "location": "Worldwide",
+    "job_type": ["full-time"],
+    "remote_type": ["remote"],
+    "under_10_applicants": true,
+    "visa_sponsorship": true,
+    "language": "en",
+    "sources": ["linkedin", "indeed", "google"]
+  }
+}
+```
+
+The equivalent relational schema is in `db/job_alerts.sql`.
+
+## Alert Worker
+
+Run the worker hourly from cron, GitHub Actions, Vercel Cron, or a Supabase Edge Function wrapper:
+
+```text
+node services/alertWorker.js
+```
+
+The worker loads active alerts, runs the existing multi-source aggregator for each alert's filters, compares results against `last_notified_at`, sends an email digest when fresh jobs are available, then updates the alert timestamp. Configure `RESEND_API_KEY` or `SENDGRID_API_KEY` plus `ALERT_EMAIL_FROM` to enable real email delivery; otherwise it logs a safe preview.
+
 ## JobPost Schema
 
 Every adapter returns this shape:
