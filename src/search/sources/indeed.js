@@ -1,5 +1,54 @@
 const { JOB_SOURCES, createJobPost } = require("../../schema/jobPost");
 
+function createIndeedMockJobs(searchQuery) {
+  const role = searchQuery.indeed.query;
+  const location = searchQuery.indeed.location;
+
+  return [
+    createJobPost({
+      title: `${role} - Remote Product Team`,
+      company: "Mock Indeed Studio",
+      location,
+      source: JOB_SOURCES.INDEED,
+      date_posted: new Date().toISOString(),
+      applicant_count: 3,
+      job_type: ["full-time"],
+      remote_type: ["remote"],
+      work_from_anywhere: true,
+      language: "en",
+      apply_link: "https://www.indeed.com",
+      is_mock: true
+    }),
+    createJobPost({
+      title: `${role} Contractor`,
+      company: "Mock Indeed Labs",
+      location,
+      source: JOB_SOURCES.INDEED,
+      date_posted: new Date().toISOString(),
+      applicant_count: 6,
+      job_type: ["contract"],
+      remote_type: ["hybrid"],
+      is_contractor: true,
+      language: "en",
+      apply_link: "https://www.indeed.com",
+      is_mock: true
+    }),
+    createJobPost({
+      title: `Junior ${role}`,
+      company: "Mock Indeed Works",
+      location,
+      source: JOB_SOURCES.INDEED,
+      date_posted: new Date().toISOString(),
+      applicant_count: 2,
+      job_type: ["full-time"],
+      remote_type: ["onsite"],
+      language: "en",
+      apply_link: "https://www.indeed.com",
+      is_mock: true
+    })
+  ];
+}
+
 function buildIndeedSearchUrls(searchQuery) {
   return searchQuery.indeed.hostnames.map((hostname) => {
     const url = new URL(`https://${hostname}/jobs`);
@@ -13,7 +62,7 @@ function buildIndeedSearchUrls(searchQuery) {
 
 async function fetchIndeedJobs(searchQuery) {
   if (!process.env.INDEED_JOBS_API_URL) {
-    return [];
+    return createIndeedMockJobs(searchQuery);
   }
 
   const searchUrls = buildIndeedSearchUrls(searchQuery);
@@ -56,5 +105,6 @@ async function fetchIndeedJobs(searchQuery) {
 
 module.exports = {
   buildIndeedSearchUrls,
+  createIndeedMockJobs,
   fetchIndeedJobs
 };

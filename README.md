@@ -87,8 +87,7 @@ Every adapter returns this shape:
 
 The first source adapters are dependency-free and return empty lists until API credentials or proxy endpoints are configured:
 
-- `LINKEDIN_JOBS_API_URL`: expected to accept `keywords`, `location`, and `applicant_count_max=9`.
-- `INDEED_JOBS_API_URL`: expected to accept a `search_url` parameter. The adapter iterates global Indeed hosts.
-- `SERPAPI_API_KEY`: enables the Google Jobs Search API style adapter through SerpApi.
+- `SERPAPI_API_KEY`: enables both Google Jobs and LinkedIn Jobs. LinkedIn uses SerpApi's `engine=linkedin_jobs` endpoint with dynamic `q` and `location` parameters; Google uses `engine=google_jobs`.
+- `INDEED_JOBS_API_URL`: expected to accept a `search_url` parameter. The adapter iterates global Indeed hosts when configured; otherwise it returns three temporary `is_mock: true` placeholder jobs.
 
 To add another source, create a file in `src/search/sources`, normalize results through `createJobPost`, then register the adapter in `src/search/sources/index.js`.

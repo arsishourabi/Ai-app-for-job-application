@@ -1,14 +1,64 @@
 const { JOB_SOURCES, createJobPost } = require("../../schema/jobPost");
 
+function parseApplicantCount(value) {
+  if (Number.isFinite(value)) return value;
+  if (!value) return null;
+
+  const normalized = String(value).toLowerCase();
+  if (normalized.includes("over") || normalized.includes("+")) return 100;
+
+  const match = normalized.match(/\d+/);
+  return match ? Number(match[0]) : null;
+}
+
+function readApplyLink(job) {
+  if (job.apply_link) return job.apply_link;
+  if (job.job_apply_link) return job.job_apply_link;
+  if (job.link) return job.link;
+  if (Array.isArray(job.apply_options) && job.apply_options[0]) {
+    return job.apply_options[0].link || "";
+  }
+  return "";
+}
+
+function mapLinkedInJob(job) {
+  const detectedExtensions = job.detected_extensions || {};
+  const description = `${job.description || ""} ${job.extensions ? job.extensions.join(" ") : ""}`;
+  const applicantCount = parseApplicantCount(
+    job.applicant_count ||
+      job.applicants ||
+      job.num_applicants ||
+      detectedExtensions.applicants ||
+      detectedExtensions.applicant_count
+  );
+
+  return createJobPost({
+    title: job.title,
+    company: job.company_name || job.company,
+    location: job.location,
+    source: JOB_SOURCES.LINKEDIN,
+    date_posted: job.date_posted || detectedExtensions.posted_at,
+    applicant_count: applicantCount,
+    job_type: detectedExtensions.schedule_type ? [detectedExtensions.schedule_type] : job.job_type,
+    remote_type: /remote/i.test(`${job.location || ""} ${description}`) ? ["remote"] : job.remote_type,
+    is_contractor: /contract|contractor/i.test(`${job.title || ""} ${description}`),
+    is_visa_sponsored: /visa|sponsor/i.test(description),
+    work_from_anywhere: /worldwide|work from anywhere|anywhere/i.test(`${job.location || ""} ${description}`),
+    language: job.language || "en",
+    apply_link: readApplyLink(job)
+  });
+}
+
 async function fetchLinkedInJobs(searchQuery) {
-  if (!process.env.LINKEDIN_JOBS_API_URL) {
+  if (!process.env.SERPAPI_API_KEY) {
     return [];
   }
 
-  const url = new URL(process.env.LINKEDIN_JOBS_API_URL);
-  url.searchParams.set("keywords", searchQuery.linkedIn.keywords);
+  const url = new URL("https://serpapi.com/search.json");
+  url.searchParams.set("engine", "linkedin_jobs");
+  url.searchParams.set("q", searchQuery.linkedIn.keywords);
   url.searchParams.set("location", searchQuery.linkedIn.location);
-  url.searchParams.set("applicant_count_max", String(searchQuery.linkedIn.applicant_count_max));
+  url.searchParams.set("api_key", process.env.SERPAPI_API_KEY);
 
   const response = await fetch(url);
   if (!response.ok) {
@@ -16,29 +66,17 @@ async function fetchLinkedInJobs(searchQuery) {
   }
 
   const payload = await response.json();
-  const items = Array.isArray(payload.jobs) ? payload.jobs : [];
+  const items = Array.isArray(payload.jobs_results)
+    ? payload.jobs_results
+    : Array.isArray(payload.jobs)
+      ? payload.jobs
+      : [];
 
-  return items
-    .filter((job) => job.applicant_count === undefined || job.applicant_count < 10)
-    .map((job) =>
-      createJobPost({
-        title: job.title,
-        company: job.company,
-        location: job.location,
-        source: JOB_SOURCES.LINKEDIN,
-        date_posted: job.date_posted,
-        applicant_count: job.applicant_count,
-        job_type: job.job_type,
-        remote_type: job.remote_type,
-        is_contractor: job.is_contractor,
-        is_visa_sponsored: job.is_visa_sponsored,
-        work_from_anywhere: job.work_from_anywhere,
-        language: job.language,
-        apply_link: job.apply_link || job.url
-      })
-    );
+  return items.map(mapLinkedInJob);
 }
 
 module.exports = {
-  fetchLinkedInJobs
+  fetchLinkedInJobs,
+  mapLinkedInJob,
+  parseApplicantCount
 };

@@ -19,7 +19,8 @@ const JOB_POST_SCHEMA = Object.freeze({
   is_visa_sponsored: "boolean",
   work_from_anywhere: "boolean",
   language: "string",
-  apply_link: "string"
+  apply_link: "string",
+  is_mock: "boolean"
 });
 
 function createJobPost(input) {
@@ -36,7 +37,8 @@ function createJobPost(input) {
     is_visa_sponsored: Boolean(input.is_visa_sponsored),
     work_from_anywhere: Boolean(input.work_from_anywhere),
     language: input.language || "en",
-    apply_link: input.apply_link || ""
+    apply_link: input.apply_link || "",
+    is_mock: Boolean(input.is_mock)
   };
 }
 
