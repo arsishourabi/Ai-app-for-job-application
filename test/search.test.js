@@ -4,7 +4,7 @@ const { normalizeFilters, applyJobFilters } = require("../src/filters/jobFilters
 const { aggregateJobs, detectJobLanguage } = require("../src/search");
 const { generateSearchQuery } = require("../src/search/generateSearchQuery");
 const { buildIndeedSearchUrls, fetchIndeedJobs } = require("../src/search/sources/indeed");
-const { fetchLinkedInJobs, parseApplicantCount } = require("../src/search/sources/linkedin");
+const { fetchLinkedInJobs, normalizeLinkedInApplyLink, parseApplicantCount } = require("../src/search/sources/linkedin");
 const { parseTelegramJobs } = require("../src/search/sources/telegram");
 
 test("generateSearchQuery requires a role and defaults location to Worldwide", () => {
@@ -103,7 +103,7 @@ test("LinkedIn adapter uses SerpApi google_jobs with a LinkedIn site query", asy
                 posted_at: "2026-05-22T00:00:00.000Z",
                 applicants: "7 applicants"
               },
-              link: "https://linkedin.com/jobs/view/123"
+              link: "https://www.linkedin.com/jobs/view/backend-engineer-at-acme-4411376096"
             }
           ]
         };
@@ -116,11 +116,22 @@ test("LinkedIn adapter uses SerpApi google_jobs with a LinkedIn site query", asy
     assert.equal(jobs.length, 1);
     assert.equal(jobs[0].source, "LinkedIn");
     assert.equal(jobs[0].applicant_count, 7);
-    assert.equal(jobs[0].apply_link, "https://linkedin.com/jobs/view/123");
+    assert.equal(jobs[0].apply_link, "https://www.linkedin.com/jobs/search/?currentJobId=4411376096");
   } finally {
     global.fetch = originalFetch;
     process.env.SERPAPI_API_KEY = originalApiKey;
   }
+});
+
+test("LinkedIn apply links are rewritten to public guest job URLs", () => {
+  assert.equal(
+    normalizeLinkedInApplyLink("https://www.linkedin.com/jobs/view/digital-marketing-manager-at-digital-waffle-4411376096"),
+    "https://www.linkedin.com/jobs/search/?currentJobId=4411376096"
+  );
+  assert.equal(
+    normalizeLinkedInApplyLink("https://www.linkedin.com/jobs/search/?currentJobId=4411376096"),
+    "https://www.linkedin.com/jobs/search/?currentJobId=4411376096"
+  );
 });
 
 test("LinkedIn applicant parser handles numeric text", () => {

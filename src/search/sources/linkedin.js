@@ -11,15 +11,39 @@ function parseApplicantCount(value) {
   return match ? Number(match[0]) : null;
 }
 
+function extractLinkedInJobId(value) {
+  const text = String(value || "");
+  const currentJobIdMatch = text.match(/[?&]currentJobId=(\d+)/i);
+  if (currentJobIdMatch) return currentJobIdMatch[1];
+
+  const viewMatch = text.match(/\/jobs\/view\/(?:[^/?#]*-)?(\d+)(?:[/?#]|$)/i);
+  if (viewMatch) return viewMatch[1];
+
+  const trailingMatch = text.match(/(?:-|\/)(\d{8,})(?:[/?#]|$)/);
+  return trailingMatch ? trailingMatch[1] : "";
+}
+
+function normalizeLinkedInApplyLink(value) {
+  const jobId = extractLinkedInJobId(value);
+  return jobId ? `https://www.linkedin.com/jobs/search/?currentJobId=${jobId}` : value;
+}
+
 function readApplyLink(job) {
+  let applyLink = "";
+
   if (Array.isArray(job.apply_options) && job.apply_options[0]) {
-    return job.apply_options[0].link || "";
+    applyLink = job.apply_options[0].link || "";
+  } else if (job.apply_link) {
+    applyLink = job.apply_link;
+  } else if (job.job_apply_link) {
+    applyLink = job.job_apply_link;
+  } else if (job.share_link) {
+    applyLink = job.share_link;
+  } else if (job.link) {
+    applyLink = job.link;
   }
-  if (job.apply_link) return job.apply_link;
-  if (job.job_apply_link) return job.job_apply_link;
-  if (job.share_link) return job.share_link;
-  if (job.link) return job.link;
-  return "";
+
+  return normalizeLinkedInApplyLink(applyLink);
 }
 
 function readGoogleJobsResults(payload) {
@@ -104,8 +128,10 @@ async function fetchLinkedInJobs(searchQuery) {
 }
 
 module.exports = {
+  extractLinkedInJobId,
   fetchLinkedInJobs,
   mapLinkedInJob,
+  normalizeLinkedInApplyLink,
   parseApplicantCount,
   readGoogleJobsResults
 };
