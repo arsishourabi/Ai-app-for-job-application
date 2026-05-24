@@ -21,10 +21,11 @@ function parseRelativeDate(value, now = new Date()) {
 
   const normalized = String(value).trim().toLowerCase();
   if (!normalized) return null;
+  if (/\b(month|months|year|years)\b/.test(normalized)) return null;
   if (/just now|today/.test(normalized)) return new Date(now);
   if (/yesterday/.test(normalized)) return new Date(now.getTime() - DAY_IN_MS);
 
-  const relativeMatch = normalized.match(/(\d+)\+?\s*(minute|minutes|hour|hours|day|days|week|weeks|month|months)\s+ago/);
+  const relativeMatch = normalized.match(/(\d+)\+?\s*(minute|minutes|hour|hours|day|days|week|weeks)\s+ago/);
   if (relativeMatch) {
     const amount = Number(relativeMatch[1]);
     const unit = relativeMatch[2];
@@ -40,6 +41,10 @@ function parseRelativeDate(value, now = new Date()) {
 
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) ? new Date(parsed) : null;
+}
+
+function hasStaleDateSignal(value) {
+  return /\b(month|months|year|years)\b/i.test(String(value || ""));
 }
 
 function readApplyLink(job) {
@@ -94,6 +99,17 @@ function readPostedAt(job) {
   return job.date_posted || detectedExtensions.posted_at || extensionDate || null;
 }
 
+function readPublicationText(job) {
+  const detectedExtensions = job.detected_extensions || {};
+  return [
+    job.date_posted,
+    detectedExtensions.posted_at,
+    Array.isArray(job.extensions) ? job.extensions.join(" ") : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 function readApplicantOrClickCount(job) {
   const detectedExtensions = job.detected_extensions || {};
   const explicitValues = [
@@ -118,36 +134,34 @@ function readApplicantOrClickCount(job) {
   return match ? parseApplicantCount(match[0]) : null;
 }
 
-function hasEasyApply(job) {
-  return /easy apply/i.test(readTextParts(job));
-}
-
-function hasHighVolumeSignal(job) {
-  return /(many applicants|high volume|highly competitive|over\s+\d+\s+(applicants?|clicks?)|\d{2,}\+?\s+(applicants?|clicks?)|hundreds?\s+of\s+(applicants?|clicks?))/i.test(readTextParts(job));
-}
-
 function getAgeInDays(date, now = new Date()) {
   return (now.getTime() - date.getTime()) / DAY_IN_MS;
 }
 
-function isRecentLinkedInJob(job, now = new Date()) {
+function isStrictRecentLinkedInJob(job, now = new Date()) {
+  const publicationText = readPublicationText(job);
+  if (hasStaleDateSignal(publicationText)) return false;
+
   const postedAt = parseRelativeDate(readPostedAt(job), now);
   if (!postedAt) return false;
-  return getAgeInDays(postedAt, now) <= MAX_JOB_AGE_DAYS;
+  return getAgeInDays(postedAt, now) < MAX_JOB_AGE_DAYS;
 }
 
-function isLowCompetitionLinkedInJob(job, now = new Date()) {
+function hasUnderOneWeekPublicationText(job) {
+  const publicationText = readPublicationText(job);
+  if (/just now|today|yesterday|\b(minute|minutes|hour|hours)\b/i.test(publicationText)) return true;
+
+  const dayMatch = publicationText.match(/\b(\d+)\+?\s*(day|days)\b/i);
+  if (dayMatch) return Number(dayMatch[1]) < LOW_COMPETITION_AGE_DAYS;
+
+  return false;
+}
+
+function isStrictLowCompetitionLinkedInJob(job) {
   const count = readApplicantOrClickCount(job);
   if (count !== null && count >= MAX_APPLICANT_OR_CLICK_COUNT) return false;
-
-  const postedAt = parseRelativeDate(readPostedAt(job), now);
-  const ageInDays = postedAt ? getAgeInDays(postedAt, now) : Infinity;
-  const easyApply = hasEasyApply(job);
-
-  if (easyApply && count !== null) return true;
-  if (hasHighVolumeSignal(job)) return false;
-
-  return ageInDays <= LOW_COMPETITION_AGE_DAYS;
+  if (count !== null) return true;
+  return hasUnderOneWeekPublicationText(job);
 }
 
 function mapLinkedInJob(job) {
@@ -193,15 +207,15 @@ async function fetchLinkedInJobs(searchQuery) {
   const items = readGoogleJobsResults(payload);
 
   return items
-    .filter((job) => isRecentLinkedInJob(job))
-    .filter((job) => isLowCompetitionLinkedInJob(job))
+    .filter((job) => isStrictRecentLinkedInJob(job))
+    .filter((job) => isStrictLowCompetitionLinkedInJob(job))
     .map(mapLinkedInJob);
 }
 
 module.exports = {
   fetchLinkedInJobs,
-  isLowCompetitionLinkedInJob,
-  isRecentLinkedInJob,
+  isStrictLowCompetitionLinkedInJob,
+  isStrictRecentLinkedInJob,
   mapLinkedInJob,
   parseApplicantCount,
   parseRelativeDate,
