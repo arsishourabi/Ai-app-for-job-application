@@ -72,6 +72,11 @@ function readGoogleJobsResults(payload) {
 
 function readTextParts(job) {
   const detectedExtensions = job.detected_extensions || {};
+  const detectedExtensionValues = Object.values(detectedExtensions).map((value) => {
+    if (Array.isArray(value)) return value.join(" ");
+    return value;
+  });
+
   return [
     job.title,
     job.description,
@@ -83,6 +88,7 @@ function readTextParts(job) {
     detectedExtensions.applicants,
     detectedExtensions.applicant_count,
     detectedExtensions.clicks,
+    ...detectedExtensionValues,
     Array.isArray(job.extensions) ? job.extensions.join(" ") : "",
     Array.isArray(job.apply_options) ? job.apply_options.map((option) => `${option.title || ""} ${option.link || ""}`).join(" ") : ""
   ]
@@ -134,6 +140,10 @@ function readApplicantOrClickCount(job) {
   return match ? parseApplicantCount(match[0]) : null;
 }
 
+function hasClosedStatusSignal(job) {
+  return /\b(no longer accepting applications|closed|expired)\b/i.test(readTextParts(job));
+}
+
 function getAgeInDays(date, now = new Date()) {
   return (now.getTime() - date.getTime()) / DAY_IN_MS;
 }
@@ -162,6 +172,16 @@ function isStrictLowCompetitionLinkedInJob(job) {
   if (count !== null && count >= MAX_APPLICANT_OR_CLICK_COUNT) return false;
   if (count !== null) return true;
   return hasUnderOneWeekPublicationText(job);
+}
+
+function shouldDropLinkedInJob(job) {
+  const applicantOrClickCount = readApplicantOrClickCount(job);
+  const isExpired = hasClosedStatusSignal(job);
+  const isTooOld = !isStrictRecentLinkedInJob(job);
+  const isOverLimit = applicantOrClickCount !== null && applicantOrClickCount >= MAX_APPLICANT_OR_CLICK_COUNT;
+  const hasUnknownMetricsOutsideSafeWindow = applicantOrClickCount === null && !hasUnderOneWeekPublicationText(job);
+
+  return isExpired || isTooOld || isOverLimit || hasUnknownMetricsOutsideSafeWindow;
 }
 
 function mapLinkedInJob(job) {
@@ -207,8 +227,7 @@ async function fetchLinkedInJobs(searchQuery) {
   const items = readGoogleJobsResults(payload);
 
   return items
-    .filter((job) => isStrictRecentLinkedInJob(job))
-    .filter((job) => isStrictLowCompetitionLinkedInJob(job))
+    .filter((job) => !shouldDropLinkedInJob(job))
     .map(mapLinkedInJob);
 }
 
@@ -219,5 +238,6 @@ module.exports = {
   mapLinkedInJob,
   parseApplicantCount,
   parseRelativeDate,
-  readGoogleJobsResults
+  readGoogleJobsResults,
+  shouldDropLinkedInJob
 };
