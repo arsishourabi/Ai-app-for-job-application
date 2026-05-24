@@ -12,13 +12,26 @@ function parseApplicantCount(value) {
 }
 
 function readApplyLink(job) {
-  if (job.apply_link) return job.apply_link;
-  if (job.job_apply_link) return job.job_apply_link;
-  if (job.link) return job.link;
   if (Array.isArray(job.apply_options) && job.apply_options[0]) {
     return job.apply_options[0].link || "";
   }
+  if (job.apply_link) return job.apply_link;
+  if (job.job_apply_link) return job.job_apply_link;
+  if (job.share_link) return job.share_link;
+  if (job.link) return job.link;
   return "";
+}
+
+function readGoogleJobsResults(payload) {
+  if (Array.isArray(payload.jobs_results)) {
+    return payload.jobs_results;
+  }
+
+  if (payload.jobs_results && Array.isArray(payload.jobs_results.jobs)) {
+    return payload.jobs_results.jobs;
+  }
+
+  return [];
 }
 
 function mapLinkedInJob(job) {
@@ -67,11 +80,7 @@ async function fetchLinkedInJobs(searchQuery) {
   }
 
   const payload = await response.json();
-  const items = Array.isArray(payload.jobs_results)
-    ? payload.jobs_results
-    : Array.isArray(payload.jobs)
-      ? payload.jobs
-      : [];
+  const items = readGoogleJobsResults(payload);
 
   return items.map(mapLinkedInJob);
 }
@@ -79,5 +88,6 @@ async function fetchLinkedInJobs(searchQuery) {
 module.exports = {
   fetchLinkedInJobs,
   mapLinkedInJob,
-  parseApplicantCount
+  parseApplicantCount,
+  readGoogleJobsResults
 };
