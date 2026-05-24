@@ -1,10 +1,5 @@
 const { JOB_SOURCES, createJobPost } = require("../../schema/jobPost");
 
-const MAX_JOB_AGE_DAYS = 30;
-const LOW_COMPETITION_AGE_DAYS = 7;
-const MAX_APPLICANT_OR_CLICK_COUNT = 20;
-const DAY_IN_MS = 24 * 60 * 60 * 1000;
-
 function parseApplicantCount(value) {
   if (Number.isFinite(value)) return value;
   if (!value) return null;
@@ -14,37 +9,6 @@ function parseApplicantCount(value) {
 
   const match = normalized.match(/\d+/);
   return match ? Number(match[0]) : null;
-}
-
-function parseRelativeDate(value, now = new Date()) {
-  if (!value) return null;
-
-  const normalized = String(value).trim().toLowerCase();
-  if (!normalized) return null;
-  if (/\b(month|months|year|years)\b/.test(normalized)) return null;
-  if (/just now|today/.test(normalized)) return new Date(now);
-  if (/yesterday/.test(normalized)) return new Date(now.getTime() - DAY_IN_MS);
-
-  const relativeMatch = normalized.match(/(\d+)\+?\s*(minute|minutes|hour|hours|day|days|week|weeks)\s+ago/);
-  if (relativeMatch) {
-    const amount = Number(relativeMatch[1]);
-    const unit = relativeMatch[2];
-    const days =
-      unit.startsWith("minute") ? 0 :
-        unit.startsWith("hour") ? 0 :
-          unit.startsWith("week") ? amount * 7 :
-            unit.startsWith("month") ? amount * 30 :
-              amount;
-
-    return new Date(now.getTime() - days * DAY_IN_MS);
-  }
-
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? new Date(parsed) : null;
-}
-
-function hasStaleDateSignal(value) {
-  return /\b(month|months|year|years)\b/i.test(String(value || ""));
 }
 
 function readApplyLink(job) {
@@ -70,52 +34,6 @@ function readGoogleJobsResults(payload) {
   return [];
 }
 
-function readTextParts(job) {
-  const detectedExtensions = job.detected_extensions || {};
-  const detectedExtensionValues = Object.values(detectedExtensions).map((value) => {
-    if (Array.isArray(value)) return value.join(" ");
-    return value;
-  });
-
-  return [
-    job.title,
-    job.description,
-    job.company_name,
-    job.company,
-    job.location,
-    job.date_posted,
-    detectedExtensions.posted_at,
-    detectedExtensions.applicants,
-    detectedExtensions.applicant_count,
-    detectedExtensions.clicks,
-    ...detectedExtensionValues,
-    Array.isArray(job.extensions) ? job.extensions.join(" ") : "",
-    Array.isArray(job.apply_options) ? job.apply_options.map((option) => `${option.title || ""} ${option.link || ""}`).join(" ") : ""
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
-function readPostedAt(job) {
-  const detectedExtensions = job.detected_extensions || {};
-  const extensionDate = Array.isArray(job.extensions)
-    ? job.extensions.find((extension) => /ago|today|yesterday|\d{4}/i.test(String(extension)))
-    : null;
-
-  return job.date_posted || detectedExtensions.posted_at || extensionDate || null;
-}
-
-function readPublicationText(job) {
-  const detectedExtensions = job.detected_extensions || {};
-  return [
-    job.date_posted,
-    detectedExtensions.posted_at,
-    Array.isArray(job.extensions) ? job.extensions.join(" ") : ""
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
 function readApplicantOrClickCount(job) {
   const detectedExtensions = job.detected_extensions || {};
   const explicitValues = [
@@ -135,53 +53,9 @@ function readApplicantOrClickCount(job) {
     if (count !== null) return count;
   }
 
-  const text = readTextParts(job);
+  const text = `${job.description || ""} ${Array.isArray(job.extensions) ? job.extensions.join(" ") : ""}`;
   const match = text.match(/(?:over\s*)?(\d+)\+?\s*(?:applicants?|applications?|clicks?)/i);
   return match ? parseApplicantCount(match[0]) : null;
-}
-
-function hasClosedStatusSignal(job) {
-  return /\b(no longer accepting applications|closed|expired)\b/i.test(readTextParts(job));
-}
-
-function getAgeInDays(date, now = new Date()) {
-  return (now.getTime() - date.getTime()) / DAY_IN_MS;
-}
-
-function isStrictRecentLinkedInJob(job, now = new Date()) {
-  const publicationText = readPublicationText(job);
-  if (hasStaleDateSignal(publicationText)) return false;
-
-  const postedAt = parseRelativeDate(readPostedAt(job), now);
-  if (!postedAt) return false;
-  return getAgeInDays(postedAt, now) < MAX_JOB_AGE_DAYS;
-}
-
-function hasUnderOneWeekPublicationText(job) {
-  const publicationText = readPublicationText(job);
-  if (/just now|today|yesterday|\b(minute|minutes|hour|hours)\b/i.test(publicationText)) return true;
-
-  const dayMatch = publicationText.match(/\b(\d+)\+?\s*(day|days)\b/i);
-  if (dayMatch) return Number(dayMatch[1]) < LOW_COMPETITION_AGE_DAYS;
-
-  return false;
-}
-
-function isStrictLowCompetitionLinkedInJob(job) {
-  const count = readApplicantOrClickCount(job);
-  if (count !== null && count >= MAX_APPLICANT_OR_CLICK_COUNT) return false;
-  if (count !== null) return true;
-  return hasUnderOneWeekPublicationText(job);
-}
-
-function shouldDropLinkedInJob(job) {
-  const applicantOrClickCount = readApplicantOrClickCount(job);
-  const isExpired = hasClosedStatusSignal(job);
-  const isTooOld = !isStrictRecentLinkedInJob(job);
-  const isOverLimit = applicantOrClickCount !== null && applicantOrClickCount >= MAX_APPLICANT_OR_CLICK_COUNT;
-  const hasUnknownMetricsOutsideSafeWindow = applicantOrClickCount === null && !hasUnderOneWeekPublicationText(job);
-
-  return isExpired || isTooOld || isOverLimit || hasUnknownMetricsOutsideSafeWindow;
 }
 
 function mapLinkedInJob(job) {
@@ -226,18 +100,12 @@ async function fetchLinkedInJobs(searchQuery) {
   const payload = await response.json();
   const items = readGoogleJobsResults(payload);
 
-  return items
-    .filter((job) => !shouldDropLinkedInJob(job))
-    .map(mapLinkedInJob);
+  return items.map(mapLinkedInJob);
 }
 
 module.exports = {
   fetchLinkedInJobs,
-  isStrictLowCompetitionLinkedInJob,
-  isStrictRecentLinkedInJob,
   mapLinkedInJob,
   parseApplicantCount,
-  parseRelativeDate,
-  readGoogleJobsResults,
-  shouldDropLinkedInJob
+  readGoogleJobsResults
 };
