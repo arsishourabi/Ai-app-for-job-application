@@ -2,6 +2,7 @@ const JOB_SOURCES = Object.freeze({
   LINKEDIN: "LinkedIn",
   GOOGLE: "Google",
   INDEED: "Indeed",
+  TELEGRAM: "Telegram",
   JOB_TODAY: "JobToday",
   DYNAMITE_JOBS: "DynamiteJobs"
 });
@@ -11,7 +12,7 @@ const JOB_POST_SCHEMA = Object.freeze({
   description: "string",
   company: "string",
   location: "string",
-  source: "LinkedIn | Google | Indeed | JobToday | DynamiteJobs | string",
+  source: "LinkedIn | Google | Indeed | Telegram | JobToday | DynamiteJobs | string",
   date_posted: "ISO-8601 date string",
   applicant_count: "number | null",
   job_type: "string[]",

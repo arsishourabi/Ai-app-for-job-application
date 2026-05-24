@@ -5,6 +5,7 @@ const { aggregateJobs, detectJobLanguage } = require("../src/search");
 const { generateSearchQuery } = require("../src/search/generateSearchQuery");
 const { buildIndeedSearchUrls, fetchIndeedJobs } = require("../src/search/sources/indeed");
 const { fetchLinkedInJobs, parseApplicantCount } = require("../src/search/sources/linkedin");
+const { parseTelegramJobs } = require("../src/search/sources/telegram");
 
 test("generateSearchQuery requires a role and defaults location to Worldwide", () => {
   const query = generateSearchQuery({ role: "Backend Engineer" });
@@ -202,4 +203,24 @@ test("aggregator detects missing job language before filtering", async () => {
     global.fetch = originalFetch;
     process.env.INDEED_JOBS_API_URL = originalProxy;
   }
+});
+
+test("Telegram source parses public channel preview messages", () => {
+  const jobs = parseTelegramJobs(`
+    <div class="tgme_widget_message" data-post="remotejobss/123">
+      <div class="tgme_widget_message_text js-message_text" dir="auto">
+        Remote Backend Engineer<br>
+        Build APIs from anywhere.<br>
+        <a href="https://example.com/apply">Apply here</a>
+      </div>
+      <time datetime="2026-05-24T10:00:00+00:00"></time>
+    </div></div>
+  `);
+
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].source, "Telegram");
+  assert.equal(jobs[0].title, "Remote Backend Engineer");
+  assert.equal(jobs[0].apply_link, "https://example.com/apply");
+  assert.equal(jobs[0].date_posted, "2026-05-24T10:00:00+00:00");
+  assert.deepEqual(jobs[0].remote_type, ["remote"]);
 });
