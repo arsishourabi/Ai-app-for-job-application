@@ -5,6 +5,7 @@ const { aggregateJobs, detectJobLanguage } = require("../src/search");
 const { generateSearchQuery } = require("../src/search/generateSearchQuery");
 const { buildIndeedSearchUrls, fetchIndeedJobs } = require("../src/search/sources/indeed");
 const { fetchLinkedInJobs, normalizeLinkedInApplyLink, parseApplicantCount } = require("../src/search/sources/linkedin");
+const { DEFAULT_SOURCE_KEYS, SOURCE_OPTIONS, normalizeSourceKeys } = require("../src/search/sources/sourceOptions");
 const { parseTelegramJobs } = require("../src/search/sources/telegram");
 
 test("generateSearchQuery requires a role and defaults location to Worldwide", () => {
@@ -22,6 +23,13 @@ test("Indeed search URLs cover global subdomains", () => {
   assert.ok(urls.some((url) => url.includes("www.indeed.com")));
   assert.ok(urls.some((url) => url.includes("uk.indeed.com")));
   assert.ok(urls.some((url) => url.includes("tr.indeed.com")));
+});
+
+test("source options expose Telegram as an enabled default", () => {
+  assert.ok(SOURCE_OPTIONS.some((source) => source.key === "telegram" && source.label === "Telegram"));
+  assert.ok(DEFAULT_SOURCE_KEYS.includes("telegram"));
+  assert.deepEqual(normalizeSourceKeys(["linkedin", "telegram", "unknown"]), ["linkedin", "telegram"]);
+  assert.ok(normalizeFilters({ role: "Engineer" }).sources.includes("telegram"));
 });
 
 test("filter logic supports AND and OR for array filters plus work-from-anywhere", () => {

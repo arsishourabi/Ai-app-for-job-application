@@ -2,7 +2,7 @@ const { applyJobFilters } = require("../filters/jobFilters");
 const { JOB_POST_SCHEMA } = require("../schema/jobPost");
 const { generateSearchQuery } = require("./generateSearchQuery");
 const { detectJobLanguage, ensureJobLanguage } = require("./languageDetection");
-const { sourceAdapters } = require("./sources");
+const { SOURCE_OPTIONS, sourceAdapters } = require("./sources");
 
 function selectSources(filters) {
   if (!filters.sources.length) return Object.keys(sourceAdapters);
@@ -49,6 +49,7 @@ async function aggregateJobs(filters) {
     schema: JOB_POST_SCHEMA,
     query: searchQuery,
     filters,
+    sources: SOURCE_OPTIONS,
     total: filteredJobs.length,
     jobs: filteredJobs,
     source_errors: sourceErrors
