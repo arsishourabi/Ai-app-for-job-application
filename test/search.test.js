@@ -3,10 +3,13 @@ const assert = require("node:assert/strict");
 const { normalizeFilters, applyJobFilters } = require("../src/filters/jobFilters");
 const { aggregateJobs, detectJobLanguage } = require("../src/search");
 const { generateSearchQuery } = require("../src/search/generateSearchQuery");
+const { fetchDynamiteJobs, parseDynamiteJobs } = require("../src/search/sources/dynamite_jobs");
 const { buildIndeedSearchUrls, fetchIndeedJobs } = require("../src/search/sources/indeed");
 const { fetchLinkedInJobs, normalizeLinkedInApplyLink, parseApplicantCount } = require("../src/search/sources/linkedin");
-const { DEFAULT_SOURCE_KEYS, SOURCE_OPTIONS, normalizeSourceKeys } = require("../src/search/sources/sourceOptions");
+const { fetchRemoteCoJobs, parseRemoteCoJobs } = require("../src/search/sources/remoteco");
+const { DEFAULT_SOURCE_KEYS, SOURCE_OPTIONS, isAllowedSourceKey, normalizeSourceKeys } = require("../src/search/sources/sourceOptions");
 const { parseTelegramJobs } = require("../src/search/sources/telegram");
+const { fetchWeWorkRemotelyJobs, parseWeWorkRemotelyJobs } = require("../src/search/sources/weworkremotely");
 
 test("generateSearchQuery requires a role and defaults location to Worldwide", () => {
   const query = generateSearchQuery({ role: "Backend Engineer" });
@@ -25,10 +28,18 @@ test("Indeed search URLs cover global subdomains", () => {
   assert.ok(urls.some((url) => url.includes("tr.indeed.com")));
 });
 
-test("source options expose Telegram as an enabled default", () => {
+test("source options expose remote source toggles as enabled defaults", () => {
   assert.ok(SOURCE_OPTIONS.some((source) => source.key === "telegram" && source.label === "Telegram"));
+  assert.ok(SOURCE_OPTIONS.some((source) => source.key === "dynamite_jobs" && source.label === "Dynamite Jobs"));
+  assert.ok(SOURCE_OPTIONS.some((source) => source.key === "weworkremotely" && source.label === "We Work Remotely"));
+  assert.ok(SOURCE_OPTIONS.some((source) => source.key === "remoteco" && source.label === "Remote.co"));
   assert.ok(DEFAULT_SOURCE_KEYS.includes("telegram"));
-  assert.deepEqual(normalizeSourceKeys(["linkedin", "telegram", "unknown"]), ["linkedin", "telegram"]);
+  assert.ok(DEFAULT_SOURCE_KEYS.includes("dynamite_jobs"));
+  assert.ok(DEFAULT_SOURCE_KEYS.includes("weworkremotely"));
+  assert.ok(DEFAULT_SOURCE_KEYS.includes("remoteco"));
+  assert.deepEqual(normalizeSourceKeys(["linkedin", "telegram", "remoteco", "unknown"]), ["linkedin", "telegram", "remoteco"]);
+  assert.equal(isAllowedSourceKey("weworkremotely"), true);
+  assert.equal(isAllowedSourceKey("not-a-source"), false);
   assert.ok(normalizeFilters({ role: "Engineer" }).sources.includes("telegram"));
 });
 
@@ -242,4 +253,64 @@ test("Telegram source parses public channel preview messages", () => {
   assert.equal(jobs[0].apply_link, "https://example.com/apply");
   assert.equal(jobs[0].date_posted, "2026-05-24T10:00:00+00:00");
   assert.deepEqual(jobs[0].remote_type, ["remote"]);
+});
+
+test("We Work Remotely source parses marketing RSS items", () => {
+  const jobs = parseWeWorkRemotelyJobs(`
+    <rss><channel><item>
+      <title><![CDATA[Senior Media Buyer]]></title>
+      <link>https://weworkremotely.com/remote-jobs/acme-senior-media-buyer</link>
+      <description><![CDATA[Remote full-time marketing role anywhere in the world.]]></description>
+      <pubDate>Mon, 25 May 2026 10:00:00 GMT</pubDate>
+    </item></channel></rss>
+  `);
+
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].source, "We Work Remotely");
+  assert.equal(jobs[0].title, "Senior Media Buyer");
+  assert.equal(jobs[0].apply_link, "https://weworkremotely.com/remote-jobs/acme-senior-media-buyer");
+  assert.deepEqual(jobs[0].remote_type, ["remote"]);
+});
+
+test("Dynamite Jobs source parses remote marketing cards", () => {
+  const jobs = parseDynamiteJobs(`
+    <a href="/remote-jobs/media-buyer">
+      <h3>Paid Media Buyer</h3>
+      <p>Remote marketing role, anywhere.</p>
+    </a>
+  `);
+
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].source, "Dynamite Jobs");
+  assert.equal(jobs[0].title, "Paid Media Buyer");
+  assert.equal(jobs[0].apply_link, "https://dynamitejobs.com/remote-jobs/media-buyer");
+});
+
+test("Remote.co source parses marketing job links", () => {
+  const jobs = parseRemoteCoJobs(`
+    <a href="/remote-jobs/marketing/growth-marketer/">
+      <span>Growth Marketer</span>
+      Remote marketing role
+    </a>
+  `);
+
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].source, "Remote.co");
+  assert.equal(jobs[0].title, "Growth Marketer");
+  assert.equal(jobs[0].apply_link, "https://remote.co/remote-jobs/marketing/growth-marketer/");
+});
+
+test("new remote sources return empty arrays on fetch failures", async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async () => {
+    throw new Error("network down");
+  };
+
+  try {
+    assert.deepEqual(await fetchDynamiteJobs(), []);
+    assert.deepEqual(await fetchWeWorkRemotelyJobs(), []);
+    assert.deepEqual(await fetchRemoteCoJobs(), []);
+  } finally {
+    global.fetch = originalFetch;
+  }
 });

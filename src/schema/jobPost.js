@@ -3,8 +3,11 @@ const JOB_SOURCES = Object.freeze({
   GOOGLE: "Google",
   INDEED: "Indeed",
   TELEGRAM: "Telegram",
+  DYNAMITE_JOBS: "Dynamite Jobs",
+  WE_WORK_REMOTELY: "We Work Remotely",
+  REMOTE_CO: "Remote.co",
   JOB_TODAY: "JobToday",
-  DYNAMITE_JOBS: "DynamiteJobs"
+  LEGACY_DYNAMITE_JOBS: "DynamiteJobs"
 });
 
 const JOB_POST_SCHEMA = Object.freeze({
@@ -12,7 +15,7 @@ const JOB_POST_SCHEMA = Object.freeze({
   description: "string",
   company: "string",
   location: "string",
-  source: "LinkedIn | Google | Indeed | Telegram | JobToday | DynamiteJobs | string",
+  source: "LinkedIn | Google | Indeed | Telegram | Dynamite Jobs | We Work Remotely | Remote.co | JobToday | DynamiteJobs | string",
   date_posted: "ISO-8601 date string",
   applicant_count: "number | null",
   job_type: "string[]",
