@@ -5,7 +5,10 @@ const SOURCE_OPTIONS = Object.freeze([
   { key: "telegram", label: "Telegram", defaultEnabled: true },
   { key: "dynamite_jobs", label: "Dynamite Jobs", defaultEnabled: true },
   { key: "weworkremotely", label: "We Work Remotely", defaultEnabled: true },
-  { key: "remoteco", label: "Remote.co", defaultEnabled: true }
+  { key: "remoteco", label: "Remote.co", defaultEnabled: true },
+  { key: "jobspresso", label: "Jobspresso", defaultEnabled: true },
+  { key: "working_nomads", label: "Working Nomads", defaultEnabled: true },
+  { key: "js_remotely", label: "JS Remotely", defaultEnabled: true }
 ]);
 
 const ALLOWED_SOURCE_KEYS = Object.freeze(SOURCE_OPTIONS.map((source) => source.key));

@@ -3,6 +3,7 @@ const { JOB_POST_SCHEMA } = require("../schema/jobPost");
 const { generateSearchQuery } = require("./generateSearchQuery");
 const { detectJobLanguage, ensureJobLanguage } = require("./languageDetection");
 const { SOURCE_OPTIONS, sourceAdapters } = require("./sources");
+const { isWorldwideEligibleJob } = require("./worldwideFilter");
 
 function selectSources(filters) {
   if (!filters.sources.length) return Object.keys(sourceAdapters);
@@ -42,7 +43,9 @@ async function aggregateJobs(filters) {
     .filter((result) => result.status === "fulfilled")
     .flatMap((result) => result.value.jobs);
 
-  const normalizedJobs = dedupeJobs(jobs).map(ensureJobLanguage);
+  const normalizedJobs = dedupeJobs(jobs)
+    .map(ensureJobLanguage)
+    .filter(isWorldwideEligibleJob);
   const filteredJobs = applyJobFilters(normalizedJobs, filters);
 
   return {
