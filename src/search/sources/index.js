@@ -3,6 +3,7 @@ const { fetchGoogleJobs } = require("./google");
 const { fetchIndeedJobs } = require("./indeed");
 const { fetchJobspressoJobs } = require("./jobspresso");
 const { fetchJsRemotelyJobs } = require("./js_remotely");
+const { fetchLinkedInFeedJobs } = require("./linkedin_posts");
 const { fetchLinkedInJobs } = require("./linkedin");
 const { fetchRemoteCoJobs } = require("./remoteco");
 const { fetchTelegramJobs } = require("./telegram");
@@ -14,6 +15,7 @@ const sourceAdapters = {
   google: fetchGoogleJobs,
   indeed: fetchIndeedJobs,
   linkedin: fetchLinkedInJobs,
+  linkedin_posts: fetchLinkedInFeedJobs,
   telegram: fetchTelegramJobs,
   dynamite_jobs: fetchDynamiteJobs,
   weworkremotely: fetchWeWorkRemotelyJobs,

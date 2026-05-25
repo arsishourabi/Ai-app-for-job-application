@@ -8,12 +8,13 @@ const { buildIndeedSearchUrls, fetchIndeedJobs } = require("../src/search/source
 const { fetchJobspressoJobs, parseJobspressoJobs } = require("../src/search/sources/jobspresso");
 const { fetchJsRemotelyJobs, parseJsRemotelyJobs } = require("../src/search/sources/js_remotely");
 const { fetchLinkedInJobs, normalizeLinkedInApplyLink, parseApplicantCount } = require("../src/search/sources/linkedin");
+const { parseLinkedInPosts } = require("../src/search/sources/linkedin_posts");
 const { fetchRemoteCoJobs, parseRemoteCoJobs } = require("../src/search/sources/remoteco");
 const { DEFAULT_SOURCE_KEYS, SOURCE_OPTIONS, isAllowedSourceKey, normalizeSourceKeys } = require("../src/search/sources/sourceOptions");
 const { parseTelegramJobs } = require("../src/search/sources/telegram");
 const { fetchWeWorkRemotelyJobs, parseWeWorkRemotelyJobs } = require("../src/search/sources/weworkremotely");
 const { fetchWorkingNomadsJobs, parseWorkingNomadsJobs } = require("../src/search/sources/working_nomads");
-const { hasGeoRestriction, isWorldwideEligibleJob } = require("../src/search/worldwideFilter");
+const { RESIDENCY_PREFERENCES, hasGeoRestriction, isWorldwideEligibleJob, matchesResidencyPreference } = require("../src/search/worldwideFilter");
 
 test("generateSearchQuery requires a role and defaults location to Worldwide", () => {
   const query = generateSearchQuery({ role: "Backend Engineer" });
@@ -34,6 +35,7 @@ test("Indeed search URLs cover global subdomains", () => {
 
 test("source options expose remote source toggles as enabled defaults", () => {
   assert.ok(SOURCE_OPTIONS.some((source) => source.key === "telegram" && source.label === "Telegram"));
+  assert.ok(SOURCE_OPTIONS.some((source) => source.key === "linkedin_posts" && source.label === "LinkedIn Feed"));
   assert.ok(SOURCE_OPTIONS.some((source) => source.key === "dynamite_jobs" && source.label === "Dynamite Jobs"));
   assert.ok(SOURCE_OPTIONS.some((source) => source.key === "weworkremotely" && source.label === "We Work Remotely"));
   assert.ok(SOURCE_OPTIONS.some((source) => source.key === "remoteco" && source.label === "Remote.co"));
@@ -41,6 +43,7 @@ test("source options expose remote source toggles as enabled defaults", () => {
   assert.ok(SOURCE_OPTIONS.some((source) => source.key === "working_nomads" && source.label === "Working Nomads"));
   assert.ok(SOURCE_OPTIONS.some((source) => source.key === "js_remotely" && source.label === "JS Remotely"));
   assert.ok(DEFAULT_SOURCE_KEYS.includes("telegram"));
+  assert.ok(DEFAULT_SOURCE_KEYS.includes("linkedin_posts"));
   assert.ok(DEFAULT_SOURCE_KEYS.includes("dynamite_jobs"));
   assert.ok(DEFAULT_SOURCE_KEYS.includes("weworkremotely"));
   assert.ok(DEFAULT_SOURCE_KEYS.includes("remoteco"));
@@ -51,6 +54,19 @@ test("source options expose remote source toggles as enabled defaults", () => {
   assert.equal(isAllowedSourceKey("weworkremotely"), true);
   assert.equal(isAllowedSourceKey("not-a-source"), false);
   assert.ok(normalizeFilters({ role: "Engineer" }).sources.includes("telegram"));
+});
+
+test("residency preferences expose exact dropdown labels", () => {
+  assert.deepEqual(RESIDENCY_PREFERENCES, [
+    "No need of residency",
+    "US",
+    "Canada",
+    "Europe",
+    "Latin america",
+    "Turkey"
+  ]);
+  assert.equal(normalizeFilters({ role: "Engineer" }).residencyPreference, "No need of residency");
+  assert.equal(normalizeFilters({ role: "Engineer", residency_preference: "Europe" }).residencyPreference, "Europe");
 });
 
 test("filter logic supports AND and OR for array filters plus work-from-anywhere", () => {
@@ -251,6 +267,13 @@ test("worldwide filter rejects region-restricted jobs", () => {
   assert.equal(isWorldwideEligibleJob({ title: "Global Marketer", location: "Worldwide", description: "Remote anywhere" }), true);
 });
 
+test("residency filter retains region-matched jobs", () => {
+  assert.equal(matchesResidencyPreference({ title: "Remote US timezone role", location: "US Only" }, "US"), true);
+  assert.equal(matchesResidencyPreference({ title: "Remote EMEA marketer", location: "Europe Only" }, "Europe"), true);
+  assert.equal(matchesResidencyPreference({ title: "Istanbul growth role", location: "Turkey" }, "Turkey"), true);
+  assert.equal(matchesResidencyPreference({ title: "Canada remote role", location: "Canada Only" }, "US"), false);
+});
+
 test("aggregator applies worldwide filter across source results", async () => {
   const filters = normalizeFilters({
     role: "Marketing",
@@ -291,6 +314,67 @@ test("aggregator applies worldwide filter across source results", async () => {
     global.fetch = originalFetch;
     process.env.INDEED_JOBS_API_URL = originalProxy;
   }
+});
+
+test("aggregator applies selected residency preference", async () => {
+  const filters = normalizeFilters({
+    role: "Marketing",
+    residency_preference: "US",
+    sources: ["indeed"]
+  });
+  const originalProxy = process.env.INDEED_JOBS_API_URL;
+  const originalFetch = global.fetch;
+  process.env.INDEED_JOBS_API_URL = "https://example.test/indeed";
+  global.fetch = async () => ({
+    ok: true,
+    async json() {
+      return {
+        jobs: [
+          {
+            title: "US Timezone Media Buyer",
+            company: "Acme",
+            location: "US Only",
+            description: "Remote role for US residents",
+            apply_link: "https://example.test/us"
+          },
+          {
+            title: "Europe Media Buyer",
+            company: "Acme",
+            location: "Europe Only",
+            description: "Remote role",
+            apply_link: "https://example.test/eu"
+          }
+        ]
+      };
+    }
+  });
+
+  try {
+    const result = await aggregateJobs(filters);
+    assert.equal(result.total, 1);
+    assert.equal(result.jobs[0].title, "US Timezone Media Buyer");
+    assert.ok(result.residency_preferences.includes("Latin america"));
+  } finally {
+    global.fetch = originalFetch;
+    process.env.INDEED_JOBS_API_URL = originalProxy;
+  }
+});
+
+test("LinkedIn Feed source parses public post search results", () => {
+  const jobs = parseLinkedInPosts({
+    organic_results: [
+      {
+        title: "Remote Roles: Media Buyer needed",
+        snippet: "Hiring remote marketer. Apply at https://jobs.example.com/media",
+        link: "https://www.linkedin.com/posts/example_remote-roles-activity-123"
+      }
+    ]
+  });
+
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].source, "LinkedIn Feed");
+  assert.match(jobs[0].title, /Remote Roles/i);
+  assert.equal(jobs[0].apply_link, "https://jobs.example.com/media");
 });
 
 test("Telegram source parses public channel preview messages", () => {

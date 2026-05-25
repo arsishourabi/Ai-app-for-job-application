@@ -1,5 +1,6 @@
 const VALID_MATCH_MODES = new Set(["and", "or"]);
 const { normalizeSourceKeys } = require("../search/sources/sourceOptions");
+const { normalizeResidencyPreference } = require("../search/worldwideFilter");
 
 function normalizeList(value) {
   if (!value) return [];
@@ -32,6 +33,7 @@ function normalizeFilters(input) {
     isVisaSponsored: input.isVisaSponsored === undefined && visaSponsorship === undefined ? undefined : Boolean(input.isVisaSponsored ?? visaSponsorship),
     under10Applicants: under10Applicants === undefined ? undefined : Boolean(under10Applicants),
     languages: normalizeList(languages),
+    residencyPreference: normalizeResidencyPreference(input.residencyPreference || input.residency_preference),
     sources: normalizeSourceKeys(normalizeList(input.sources))
   };
 }

@@ -3,7 +3,7 @@ const { JOB_POST_SCHEMA } = require("../schema/jobPost");
 const { generateSearchQuery } = require("./generateSearchQuery");
 const { detectJobLanguage, ensureJobLanguage } = require("./languageDetection");
 const { SOURCE_OPTIONS, sourceAdapters } = require("./sources");
-const { isWorldwideEligibleJob } = require("./worldwideFilter");
+const { RESIDENCY_PREFERENCES, matchesResidencyPreference } = require("./worldwideFilter");
 
 function selectSources(filters) {
   if (!filters.sources.length) return Object.keys(sourceAdapters);
@@ -45,7 +45,7 @@ async function aggregateJobs(filters) {
 
   const normalizedJobs = dedupeJobs(jobs)
     .map(ensureJobLanguage)
-    .filter(isWorldwideEligibleJob);
+    .filter((job) => matchesResidencyPreference(job, filters.residencyPreference));
   const filteredJobs = applyJobFilters(normalizedJobs, filters);
 
   return {
@@ -53,6 +53,7 @@ async function aggregateJobs(filters) {
     query: searchQuery,
     filters,
     sources: SOURCE_OPTIONS,
+    residency_preferences: RESIDENCY_PREFERENCES,
     total: filteredJobs.length,
     jobs: filteredJobs,
     source_errors: sourceErrors

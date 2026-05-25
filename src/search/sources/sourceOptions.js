@@ -1,6 +1,7 @@
 const SOURCE_OPTIONS = Object.freeze([
   { key: "google", label: "Google Jobs", defaultEnabled: true },
   { key: "linkedin", label: "LinkedIn", defaultEnabled: true },
+  { key: "linkedin_posts", label: "LinkedIn Feed", defaultEnabled: true },
   { key: "indeed", label: "Indeed", defaultEnabled: true },
   { key: "telegram", label: "Telegram", defaultEnabled: true },
   { key: "dynamite_jobs", label: "Dynamite Jobs", defaultEnabled: true },

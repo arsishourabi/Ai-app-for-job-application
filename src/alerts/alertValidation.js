@@ -23,6 +23,7 @@ function normalizeAlertFilters(input = {}) {
     visa_sponsorship: normalizeBoolean(input.visa_sponsorship ?? input.is_visa_sponsored ?? input.isVisaSponsored),
     under_10_applicants: normalizeBoolean(input.under_10_applicants ?? input.under10Applicants),
     languages: input.languages ?? input.language,
+    residency_preference: input.residency_preference ?? input.residencyPreference,
     sources: input.sources
   });
 }

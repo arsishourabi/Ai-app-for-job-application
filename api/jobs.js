@@ -52,6 +52,7 @@ async function jobsHandler(req, res) {
     isContractor: parseBoolean(query.is_contractor || query.isContractor),
     isVisaSponsored: parseBoolean(query.is_visa_sponsored || query.isVisaSponsored),
     languages: parseList(query.languages || query.language),
+    residency_preference: query.residency_preference || query.residencyPreference,
     sources: parseList(query.sources)
   });
 

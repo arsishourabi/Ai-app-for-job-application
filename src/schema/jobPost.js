@@ -1,5 +1,6 @@
 const JOB_SOURCES = Object.freeze({
   LINKEDIN: "LinkedIn",
+  LINKEDIN_FEED: "LinkedIn Feed",
   GOOGLE: "Google",
   INDEED: "Indeed",
   TELEGRAM: "Telegram",
@@ -18,7 +19,7 @@ const JOB_POST_SCHEMA = Object.freeze({
   description: "string",
   company: "string",
   location: "string",
-  source: "LinkedIn | Google | Indeed | Telegram | Dynamite Jobs | We Work Remotely | Remote.co | Jobspresso | Working Nomads | JS Remotely | JobToday | DynamiteJobs | string",
+  source: "LinkedIn | LinkedIn Feed | Google | Indeed | Telegram | Dynamite Jobs | We Work Remotely | Remote.co | Jobspresso | Working Nomads | JS Remotely | JobToday | DynamiteJobs | string",
   date_posted: "ISO-8601 date string",
   applicant_count: "number | null",
   job_type: "string[]",
