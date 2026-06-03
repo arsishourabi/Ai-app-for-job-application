@@ -1,5 +1,6 @@
 const { JOB_SOURCES, createJobPost } = require("../../schema/jobPost");
 const { absoluteUrl, compactText, extractFirstMatch, stripTags } = require("./htmlUtils");
+const { fetchSerpApiSiteJobs } = require("./serpapiSiteJobs");
 
 const JS_REMOTELY_URL = "https://javascript.jobs/remote";
 
@@ -48,7 +49,14 @@ function parseJsRemotelyJobs(html) {
     });
 }
 
-async function fetchJsRemotelyJobs() {
+async function fetchJsRemotelyJobs(searchQuery) {
+  const serpJobs = await fetchSerpApiSiteJobs(searchQuery, {
+    site: "javascript.jobs",
+    source: JOB_SOURCES.JS_REMOTELY,
+    querySuffix: "developer IT"
+  });
+  if (serpJobs.length) return serpJobs;
+
   try {
     const response = await fetch(JS_REMOTELY_URL);
     if (!response.ok) return [];

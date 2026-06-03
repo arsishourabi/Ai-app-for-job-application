@@ -14,6 +14,8 @@ const JOB_SOURCES = Object.freeze({
   LEGACY_DYNAMITE_JOBS: "DynamiteJobs"
 });
 
+const { inferRemoteTypesFromText, normalizeWorkType } = require("../search/workTypeOptions");
+
 const JOB_POST_SCHEMA = Object.freeze({
   title: "string",
   description: "string",
@@ -33,6 +35,9 @@ const JOB_POST_SCHEMA = Object.freeze({
 });
 
 function createJobPost(input) {
+  const explicitRemoteTypes = Array.isArray(input.remote_type) ? input.remote_type.map(normalizeWorkType).filter(Boolean) : [];
+  const inferredRemoteTypes = inferRemoteTypesFromText(input.title, input.description, input.location);
+
   return {
     title: input.title || "",
     description: input.description || "",
@@ -42,7 +47,7 @@ function createJobPost(input) {
     date_posted: input.date_posted || null,
     applicant_count: Number.isFinite(input.applicant_count) ? input.applicant_count : null,
     job_type: Array.isArray(input.job_type) ? input.job_type : [],
-    remote_type: Array.isArray(input.remote_type) ? input.remote_type : [],
+    remote_type: explicitRemoteTypes.length ? explicitRemoteTypes : inferredRemoteTypes,
     is_contractor: Boolean(input.is_contractor),
     is_visa_sponsored: Boolean(input.is_visa_sponsored),
     work_from_anywhere: Boolean(input.work_from_anywhere),

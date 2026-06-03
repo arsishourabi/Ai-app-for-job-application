@@ -1,5 +1,6 @@
 const { JOB_SOURCES, createJobPost } = require("../../schema/jobPost");
 const { compactText, decodeHtml, extractFirstMatch, stripTags } = require("./htmlUtils");
+const { fetchSerpApiSiteJobs } = require("./serpapiSiteJobs");
 
 const WEWORKREMOTELY_RSS_URL = "https://weworkremotely.com/categories/remote-marketing-jobs.rss";
 
@@ -39,7 +40,14 @@ function parseWeWorkRemotelyJobs(xml) {
   }).filter((job) => job.title || job.apply_link);
 }
 
-async function fetchWeWorkRemotelyJobs() {
+async function fetchWeWorkRemotelyJobs(searchQuery) {
+  const serpJobs = await fetchSerpApiSiteJobs(searchQuery, {
+    site: "weworkremotely.com",
+    source: JOB_SOURCES.WE_WORK_REMOTELY,
+    querySuffix: "marketing"
+  });
+  if (serpJobs.length) return serpJobs;
+
   try {
     const response = await fetch(WEWORKREMOTELY_RSS_URL);
     if (!response.ok) return [];

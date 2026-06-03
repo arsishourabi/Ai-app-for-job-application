@@ -1,6 +1,7 @@
 const VALID_MATCH_MODES = new Set(["and", "or"]);
 const { normalizeSourceKeys } = require("../search/sources/sourceOptions");
 const { normalizeResidencyPreference } = require("../search/worldwideFilter");
+const { normalizeWorkType } = require("../search/workTypeOptions");
 
 function normalizeList(value) {
   if (!value) return [];
@@ -26,7 +27,7 @@ function normalizeFilters(input) {
     location: String(input.location || "Worldwide").trim() || "Worldwide",
     jobType: normalizeList(input.jobType || input.job_type),
     jobTypeMode: normalizeMatchMode(input.jobTypeMode),
-    remoteType: normalizeList(input.remoteType || input.remote_type),
+    remoteType: normalizeList(input.remoteType || input.remote_type).map(normalizeWorkType),
     remoteTypeMode: normalizeMatchMode(input.remoteTypeMode),
     workFromAnywhere: input.workFromAnywhere === undefined ? undefined : Boolean(input.workFromAnywhere),
     isContractor: input.isContractor === undefined ? undefined : Boolean(input.isContractor),

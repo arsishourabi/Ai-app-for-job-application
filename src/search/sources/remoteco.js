@@ -1,5 +1,6 @@
 const { JOB_SOURCES, createJobPost } = require("../../schema/jobPost");
 const { absoluteUrl, compactText, extractFirstMatch, stripTags } = require("./htmlUtils");
+const { fetchSerpApiSiteJobs } = require("./serpapiSiteJobs");
 
 const REMOTECO_MARKETING_URL = "https://remote.co/remote-jobs/marketing";
 
@@ -49,7 +50,14 @@ function parseRemoteCoJobs(html) {
     });
 }
 
-async function fetchRemoteCoJobs() {
+async function fetchRemoteCoJobs(searchQuery) {
+  const serpJobs = await fetchSerpApiSiteJobs(searchQuery, {
+    site: "remote.co",
+    source: JOB_SOURCES.REMOTE_CO,
+    querySuffix: "marketing media buyer"
+  });
+  if (serpJobs.length) return serpJobs;
+
   try {
     const response = await fetch(REMOTECO_MARKETING_URL);
     if (!response.ok) return [];

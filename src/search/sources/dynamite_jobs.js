@@ -1,5 +1,6 @@
 const { JOB_SOURCES, createJobPost } = require("../../schema/jobPost");
 const { absoluteUrl, compactText, extractFirstMatch, stripTags } = require("./htmlUtils");
+const { fetchSerpApiSiteJobs } = require("./serpapiSiteJobs");
 
 const DYNAMITE_JOBS_URL = "https://dynamitejobs.com/remote-jobs?text=marketing%20media%20buyer";
 
@@ -49,7 +50,14 @@ function parseDynamiteJobs(html) {
     });
 }
 
-async function fetchDynamiteJobs() {
+async function fetchDynamiteJobs(searchQuery) {
+  const serpJobs = await fetchSerpApiSiteJobs(searchQuery, {
+    site: "dynamitejobs.com",
+    source: JOB_SOURCES.DYNAMITE_JOBS,
+    querySuffix: "marketing media buyer"
+  });
+  if (serpJobs.length) return serpJobs;
+
   try {
     const response = await fetch(DYNAMITE_JOBS_URL);
     if (!response.ok) return [];

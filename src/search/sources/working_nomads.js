@@ -1,5 +1,6 @@
 const { JOB_SOURCES, createJobPost } = require("../../schema/jobPost");
 const { absoluteUrl, compactText, extractFirstMatch, stripTags } = require("./htmlUtils");
+const { fetchSerpApiSiteJobs } = require("./serpapiSiteJobs");
 
 const WORKING_NOMADS_URLS = Object.freeze([
   "https://www.workingnomads.com/remote-marketing-jobs",
@@ -51,7 +52,14 @@ function parseWorkingNomadsJobs(html) {
     });
 }
 
-async function fetchWorkingNomadsJobs() {
+async function fetchWorkingNomadsJobs(searchQuery) {
+  const serpJobs = await fetchSerpApiSiteJobs(searchQuery, {
+    site: "workingnomads.com",
+    source: JOB_SOURCES.WORKING_NOMADS,
+    querySuffix: "marketing IT"
+  });
+  if (serpJobs.length) return serpJobs;
+
   try {
     const pages = await Promise.all(
       WORKING_NOMADS_URLS.map(async (url) => {

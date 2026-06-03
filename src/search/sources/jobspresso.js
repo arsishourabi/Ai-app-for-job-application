@@ -1,5 +1,6 @@
 const { JOB_SOURCES, createJobPost } = require("../../schema/jobPost");
 const { absoluteUrl, compactText, extractFirstMatch, stripTags } = require("./htmlUtils");
+const { fetchSerpApiSiteJobs } = require("./serpapiSiteJobs");
 
 const JOBSPRESSO_URLS = Object.freeze([
   "https://jobspresso.co/remote-marketing-jobs/",
@@ -51,7 +52,14 @@ function parseJobspressoJobs(html) {
     });
 }
 
-async function fetchJobspressoJobs() {
+async function fetchJobspressoJobs(searchQuery) {
+  const serpJobs = await fetchSerpApiSiteJobs(searchQuery, {
+    site: "jobspresso.co",
+    source: JOB_SOURCES.JOBSPRESSO,
+    querySuffix: "marketing tech"
+  });
+  if (serpJobs.length) return serpJobs;
+
   try {
     const pages = await Promise.all(
       JOBSPRESSO_URLS.map(async (url) => {

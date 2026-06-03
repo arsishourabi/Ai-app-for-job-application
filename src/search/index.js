@@ -3,6 +3,8 @@ const { JOB_POST_SCHEMA } = require("../schema/jobPost");
 const { generateSearchQuery } = require("./generateSearchQuery");
 const { detectJobLanguage, ensureJobLanguage } = require("./languageDetection");
 const { SOURCE_OPTIONS, sourceAdapters } = require("./sources");
+const { WORK_TYPE_OPTIONS } = require("./workTypeOptions");
+const { enrichVisaSponsorship } = require("./visaSponsorship");
 const { RESIDENCY_PREFERENCES, matchesResidencyPreference } = require("./worldwideFilter");
 
 function selectSources(filters) {
@@ -44,6 +46,7 @@ async function aggregateJobs(filters) {
     .flatMap((result) => result.value.jobs);
 
   const normalizedJobs = dedupeJobs(jobs)
+    .map(enrichVisaSponsorship)
     .map(ensureJobLanguage)
     .filter((job) => matchesResidencyPreference(job, filters.residencyPreference));
   const filteredJobs = applyJobFilters(normalizedJobs, filters);
@@ -54,6 +57,7 @@ async function aggregateJobs(filters) {
     filters,
     sources: SOURCE_OPTIONS,
     residency_preferences: RESIDENCY_PREFERENCES,
+    work_type_options: WORK_TYPE_OPTIONS,
     total: filteredJobs.length,
     jobs: filteredJobs,
     source_errors: sourceErrors

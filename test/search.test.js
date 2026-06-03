@@ -14,6 +14,10 @@ const { DEFAULT_SOURCE_KEYS, SOURCE_OPTIONS, isAllowedSourceKey, normalizeSource
 const { parseTelegramJobs } = require("../src/search/sources/telegram");
 const { fetchWeWorkRemotelyJobs, parseWeWorkRemotelyJobs } = require("../src/search/sources/weworkremotely");
 const { fetchWorkingNomadsJobs, parseWorkingNomadsJobs } = require("../src/search/sources/working_nomads");
+const { mapSerpApiSiteJob } = require("../src/search/sources/serpapiSiteJobs");
+const { isKnownSponsor, normalizeSponsorName } = require("../src/search/utils/global_sponsors");
+const { WORK_TYPE_OPTIONS, normalizeWorkType } = require("../src/search/workTypeOptions");
+const { hasPositiveVisaSignal } = require("../src/search/visaSponsorship");
 const { RESIDENCY_PREFERENCES, hasGeoRestriction, isWorldwideEligibleJob, matchesResidencyPreference } = require("../src/search/worldwideFilter");
 
 test("generateSearchQuery requires a role and defaults location to Worldwide", () => {
@@ -106,6 +110,13 @@ test("filter logic supports AND and OR for array filters plus work-from-anywhere
   assert.equal(result[0].title, "Remote Full Stack Engineer");
 });
 
+test("Flexible time work type normalizes async and flexible schedule language", () => {
+  assert.ok(WORK_TYPE_OPTIONS.some((option) => option.key === "flexible_time" && option.label === "Flexible time"));
+  assert.equal(normalizeWorkType("Async"), "flexible_time");
+  assert.equal(normalizeWorkType("flexible schedule"), "flexible_time");
+  assert.deepEqual(normalizeFilters({ role: "Engineer", remote_type: ["async"] }).remoteType, ["flexible_time"]);
+});
+
 test("under 10 applicant filter excludes unknown and crowded jobs", () => {
   const filters = normalizeFilters({
     role: "Engineer",
@@ -122,6 +133,55 @@ test("under 10 applicant filter excludes unknown and crowded jobs", () => {
 
   assert.equal(result.length, 1);
   assert.equal(result[0].title, "Low applicant role");
+});
+
+test("visa sponsorship enrichment uses positive text or sponsor registry", async () => {
+  assert.equal(hasPositiveVisaSignal({ title: "Engineer", description: "Visa Sponsorship and relocation assistance available" }), true);
+  assert.equal(hasPositiveVisaSignal({ title: "Engineer", description: "No sponsorship available" }), false);
+  assert.equal(normalizeSponsorName("Infosys Limited"), "INFOSYS");
+  assert.equal(isKnownSponsor("Infosys Limited"), true);
+
+  const filters = normalizeFilters({
+    role: "Engineer",
+    isVisaSponsored: true,
+    sources: ["indeed"]
+  });
+  const originalProxy = process.env.INDEED_JOBS_API_URL;
+  const originalFetch = global.fetch;
+  process.env.INDEED_JOBS_API_URL = "https://example.test/indeed";
+  global.fetch = async () => ({
+    ok: true,
+    async json() {
+      return {
+        jobs: [
+          {
+            title: "Engineer",
+            company: "Infosys Limited",
+            location: "Worldwide",
+            description: "Remote role",
+            apply_link: "https://example.test/sponsor"
+          },
+          {
+            title: "Engineer",
+            company: "Small Co",
+            location: "Worldwide",
+            description: "No sponsorship available",
+            apply_link: "https://example.test/no"
+          }
+        ]
+      };
+    }
+  });
+
+  try {
+    const result = await aggregateJobs(filters);
+    assert.equal(result.total, 1);
+    assert.equal(result.jobs[0].company, "Infosys Limited");
+    assert.equal(result.jobs[0].is_visa_sponsored, true);
+  } finally {
+    global.fetch = originalFetch;
+    process.env.INDEED_JOBS_API_URL = originalProxy;
+  }
 });
 
 test("LinkedIn adapter uses SerpApi google_jobs with a LinkedIn site query", async () => {
@@ -395,6 +455,61 @@ test("Telegram source parses public channel preview messages", () => {
   assert.equal(jobs[0].apply_link, "https://example.com/apply");
   assert.equal(jobs[0].date_posted, "2026-05-24T10:00:00+00:00");
   assert.deepEqual(jobs[0].remote_type, ["remote"]);
+});
+
+test("SerpApi site-routed mapper supports Flexible time and visa text", () => {
+  const job = mapSerpApiSiteJob(
+    {
+      title: "Remote Media Buyer",
+      description: "Flexible hours with Visa Support",
+      company_name: "Acme",
+      location: "Worldwide",
+      detected_extensions: { schedule_type: "Full-time" },
+      share_link: "https://example.test/job"
+    },
+    "Telegram"
+  );
+
+  assert.equal(job.source, "Telegram");
+  assert.ok(job.remote_type.includes("flexible_time"));
+  assert.equal(job.is_visa_sponsored, true);
+});
+
+test("Telegram fetch uses SerpApi google_jobs site route when available", async () => {
+  const { fetchTelegramJobs } = require("../src/search/sources/telegram");
+  const originalFetch = global.fetch;
+  const originalApiKey = process.env.SERPAPI_API_KEY;
+  process.env.SERPAPI_API_KEY = "test-key";
+
+  global.fetch = async (url) => {
+    assert.equal(url.searchParams.get("engine"), "google_jobs");
+    assert.match(url.searchParams.get("q"), /site:t\.me\/remotejobss/);
+    return {
+      ok: true,
+      async json() {
+        return {
+          jobs_results: [
+            {
+              title: "Remote Media Buyer",
+              company_name: "Acme",
+              location: "Worldwide",
+              description: "Flexible schedule",
+              share_link: "https://t.me/remotejobss/123"
+            }
+          ]
+        };
+      }
+    };
+  };
+
+  try {
+    const jobs = await fetchTelegramJobs(generateSearchQuery({ role: "Media Buyer" }));
+    assert.equal(jobs.length, 1);
+    assert.equal(jobs[0].source, "Telegram");
+  } finally {
+    global.fetch = originalFetch;
+    process.env.SERPAPI_API_KEY = originalApiKey;
+  }
 });
 
 test("We Work Remotely source parses marketing RSS items", () => {

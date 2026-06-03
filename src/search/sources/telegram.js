@@ -1,4 +1,5 @@
 const { JOB_SOURCES, createJobPost } = require("../../schema/jobPost");
+const { fetchSerpApiSiteJobs } = require("./serpapiSiteJobs");
 
 const TELEGRAM_CHANNEL = "remotejobss";
 const TELEGRAM_PREVIEW_URL = `https://t.me/s/${TELEGRAM_CHANNEL}`;
@@ -88,14 +89,23 @@ function parseTelegramJobs(html) {
     .filter(Boolean);
 }
 
-async function fetchTelegramJobs() {
-  const response = await fetch(TELEGRAM_PREVIEW_URL);
-  if (!response.ok) {
-    throw new Error(`Telegram source failed with status ${response.status}`);
-  }
+async function fetchTelegramJobs(searchQuery) {
+  const serpJobs = await fetchSerpApiSiteJobs(searchQuery, {
+    site: "t.me/remotejobss",
+    source: JOB_SOURCES.TELEGRAM,
+    querySuffix: "telegram"
+  });
+  if (serpJobs.length) return serpJobs;
 
-  const html = await response.text();
-  return parseTelegramJobs(html);
+  try {
+    const response = await fetch(TELEGRAM_PREVIEW_URL);
+    if (!response.ok) return [];
+
+    const html = await response.text();
+    return parseTelegramJobs(html);
+  } catch {
+    return [];
+  }
 }
 
 module.exports = {
